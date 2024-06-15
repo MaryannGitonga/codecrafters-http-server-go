@@ -2,13 +2,21 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
+var filesDirectory string
+
 func main() {
+	// Parse command-line arguments
+	flag.StringVar(&filesDirectory, "directory", ".", "directory to serve files from")
+	flag.Parse()
+
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
@@ -58,14 +66,32 @@ func handleConnection(conn net.Conn) {
 	var response string
 
 	if method == "GET" {
-		// handle /echo
 		if strings.HasPrefix(path, "/echo/") {
+			// handle /echo/{string}
 			content := strings.TrimPrefix(path, "/echo/")
 			contentLength := len(content)
 			response = fmt.Sprintf(
 				"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
 				contentLength, content,
 			)
+		} else if strings.HasPrefix(path, "/files/") {
+			// handle /files/{filename}
+			fileName := strings.TrimPrefix(path, "/files/")
+			filePath := filepath.Join(filesDirectory, fileName)
+
+			// read file
+			fileContent, err := os.ReadFile(filePath)
+
+			if err != nil {
+				response = "HTTP/1.1 404 Not Found\r\n\r\n"
+			} else {
+				contentLength := len(fileContent)
+				response = fmt.Sprintf(
+					"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s",
+					contentLength, string(fileContent),
+				)
+			}
+
 		} else if path == "/" {
 			response = "HTTP/1.1 200 OK\r\n\r\n"
 		} else if path == "/user-agent" {
