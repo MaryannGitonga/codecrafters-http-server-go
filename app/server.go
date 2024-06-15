@@ -71,10 +71,36 @@ func handleConnection(conn net.Conn) {
 			// handle /echo/{string}
 			content := strings.TrimPrefix(path, "/echo/")
 			contentLength := len(content)
-			response = fmt.Sprintf(
-				"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
-				contentLength, content,
-			)
+
+			var acceptEncoding string
+
+			// Read headers
+			for {
+				line, err := reader.ReadString('\n')
+				if err != nil {
+					fmt.Println("Error reading header:", err.Error())
+					return
+				}
+				if line == "\r\n" {
+					break
+				}
+				headerParts := strings.SplitN(line, ":", 2)
+				if len(headerParts) == 2 && strings.TrimSpace(strings.ToLower(headerParts[0])) == "accept-encoding" {
+					acceptEncoding = strings.TrimSpace(headerParts[1])
+				}
+			}
+
+			if acceptEncoding == "gzip" {
+				response = fmt.Sprintf(
+					"HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
+					contentLength, content,
+				)
+			} else {
+				response = fmt.Sprintf(
+					"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
+					contentLength, content,
+				)
+			}
 		} else if strings.HasPrefix(path, "/files/") {
 			// handle /files/{filename}
 			fileName := strings.TrimPrefix(path, "/files/")
