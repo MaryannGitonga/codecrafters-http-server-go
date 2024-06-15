@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"compress/gzip"
 	"flag"
 	"fmt"
 	"net"
@@ -70,7 +71,6 @@ func handleConnection(conn net.Conn) {
 		if strings.HasPrefix(path, "/echo/") {
 			// handle /echo/{string}
 			content := strings.TrimPrefix(path, "/echo/")
-			contentLength := len(content)
 
 			var contentEncoding string
 
@@ -97,11 +97,33 @@ func handleConnection(conn net.Conn) {
 			}
 
 			if contentEncoding == "gzip" {
+				var gzippedContent []byte
+				{
+					var b strings.Builder
+					gz := gzip.NewWriter(&b)
+					_, err := gz.Write([]byte(content))
+
+					if err != nil {
+						fmt.Println("Error compressing content:", err.Error())
+						return
+					}
+
+					err = gz.Close()
+					if err != nil {
+						fmt.Println("Error closing gzip writer:", err.Error())
+						return
+					}
+
+					gzippedContent = []byte(b.String())
+				}
+
+				contentLength := len(gzippedContent)
 				response = fmt.Sprintf(
 					"HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
-					contentLength, content,
+					contentLength, gzippedContent,
 				)
 			} else {
+				contentLength := len(content)
 				response = fmt.Sprintf(
 					"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
 					contentLength, content,
