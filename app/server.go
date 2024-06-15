@@ -68,6 +68,33 @@ func handleConnection(conn net.Conn) {
 			)
 		} else if path == "/" {
 			response = "HTTP/1.1 200 OK\r\n\r\n"
+		} else if path == "/user-agent" {
+			// Read headers and look for User-Agent
+			var userAgent string
+			for {
+				line, err := reader.ReadString('\n')
+				if err != nil {
+					fmt.Println("Error reading header:", err.Error())
+					return
+				}
+				if line == "\r\n" {
+					break
+				}
+				headerParts := strings.SplitN(line, ":", 2)
+				if len(headerParts) == 2 && strings.TrimSpace(strings.ToLower(headerParts[0])) == "user-agent" {
+					userAgent = strings.TrimSpace(headerParts[1])
+				}
+			}
+
+			if userAgent != "" {
+				contentLength := len(userAgent)
+				response = fmt.Sprintf(
+					"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
+					contentLength, userAgent,
+				)
+			} else {
+				response = "HTTP/1.1 400 Bad Request\r\n\r\n"
+			}
 		} else {
 			response = "HTTP/1.1 404 Not Found\r\n\r\n"
 		}
