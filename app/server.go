@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -123,6 +124,53 @@ func handleConnection(conn net.Conn) {
 			}
 		} else {
 			response = "HTTP/1.1 404 Not Found\r\n\r\n"
+		}
+	} else if method == "POST" {
+		if strings.HasPrefix(path, "/files/") {
+			// handle /files/{filename}
+			fileName := strings.TrimPrefix(path, "/files/")
+			filePath := filepath.Join(filesDirectory, fileName)
+
+			// read headers and look for Content-Length
+			var contentLength int
+			for {
+				line, err := reader.ReadString('\n')
+				if err != nil {
+					fmt.Println("Error reading header:", err.Error())
+					return
+				}
+
+				if line == "\r\n" {
+					break
+				}
+
+				headerParts := strings.SplitN(line, ":", 2)
+				if len(headerParts) == 2 && strings.TrimSpace(strings.ToLower(headerParts[0])) == "content-length" {
+					contentLength, err = strconv.Atoi(strings.TrimSpace(headerParts[1]))
+					if err != nil {
+						fmt.Println("Invalid Content-Length header.")
+						return
+					}
+				}
+			}
+
+			// read body
+			body := make([]byte, contentLength)
+			_, err := reader.Read(body)
+
+			if err != nil {
+				fmt.Println("Error reading body:", err.Error())
+				return
+			}
+
+			// write body to file
+			err = os.WriteFile(filePath, body, 0644)
+			if err != nil {
+				fmt.Println("Error writing file:", err.Error())
+				return
+			}
+
+			response = "HTTP/1.1 201 Created\r\n\r\n"
 		}
 	} else {
 		response = "HTTP/1.1 404 Not Found\r\n\r\n"
