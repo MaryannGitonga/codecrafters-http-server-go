@@ -52,11 +52,25 @@ func handleConnection(conn net.Conn) {
 		return
 	}
 
+	method := requestParts[0]
 	path := requestParts[1]
 
 	var response string
-	if path == "/" {
-		response = "HTTP/1.1 200 OK\r\n\r\n"
+
+	if method == "GET" {
+		// handle /echo
+		if strings.HasPrefix(path, "/echo/") {
+			content := strings.TrimPrefix(path, "/echo/")
+			contentLength := len(content)
+			response = fmt.Sprintf(
+				"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
+				contentLength, content,
+			)
+		} else if path == "/" {
+			response = "HTTP/1.1 200 OK\r\n\r\n"
+		} else {
+			response = "HTTP/1.1 404 Not Found\r\n\r\n"
+		}
 	} else {
 		response = "HTTP/1.1 404 Not Found\r\n\r\n"
 	}
