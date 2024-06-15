@@ -72,7 +72,7 @@ func handleConnection(conn net.Conn) {
 			content := strings.TrimPrefix(path, "/echo/")
 			contentLength := len(content)
 
-			var acceptEncoding string
+			var contentEncoding string
 
 			// Read headers
 			for {
@@ -86,11 +86,17 @@ func handleConnection(conn net.Conn) {
 				}
 				headerParts := strings.SplitN(line, ":", 2)
 				if len(headerParts) == 2 && strings.TrimSpace(strings.ToLower(headerParts[0])) == "accept-encoding" {
-					acceptEncoding = strings.TrimSpace(headerParts[1])
+					encodings := strings.Split(strings.TrimSpace(headerParts[1]), ",")
+					for _, encoding := range encodings {
+						if strings.TrimSpace(encoding) == "gzip" {
+							contentEncoding = "gzip"
+							break
+						}
+					}
 				}
 			}
 
-			if acceptEncoding == "gzip" {
+			if contentEncoding == "gzip" {
 				response = fmt.Sprintf(
 					"HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
 					contentLength, content,
